@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <style>
+        body {
+            background-image: url('https://drive.google.com/uc?export=view&id=13KLj9H3mD7IZAerZRnKJ5OVuBuriq4cK');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-position: center;
+            font-family: Arial, sans-serif;
+        }
+        .form-container {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 600px;
+            margin: 50px auto;
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+    
+  <meta charset="UTF-8">
+  <title>SpeedConsert - Ordem de Serviço</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCVWM7R_X2quyDO7x8v8yZy5zCWX_utjCs",
+      authDomain: "infinityspeedconsert.firebaseapp.com",
+      projectId: "infinityspeedconsert",
+      storageBucket: "infinityspeedconsert.firebasestorage.app",
+      messagingSenderId: "27014856720",
+      appId: "1:27014856720:web:f5fb4ddffc49d51e1fca95"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const enderecoAssistencia = { lat: -30.084328, lng: -51.236595 };
+
+    function calcularDistancia(coord1, coord2) {
+      const R = 6371;
+      const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
+      const dLng = (coord2.lng - coord1.lng) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    async function obterLocalizacao(callback) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const coords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          const distancia = calcularDistancia(coords, enderecoAssistencia);
+          callback(distancia, coords);
+        }, () => {
+          alert("Não foi possível obter sua localização.");
+        });
+      } else {
+        alert("Geolocalização não é suportada neste navegador.");
+      }
+    }
+
+    window.enviarFormulario = function () {
+      obterLocalizacao(async (distancia, coords) => {
+        document.getElementById("taxaInfo").textContent = distancia <= 5
+          ? "✅ Tele-busca gratuita"
+          : `⚠️ Distância: ${distancia.toFixed(2)} km. Taxa de R$ ${(distancia - 5) * 3}`;
+
+        const nome = document.getElementById("nome").value;
+        const telefone = document.getElementById("telefone").value;
+        const modelo = document.getElementById("modelo").value;
+        const defeito = document.getElementById("defeito").value;
+
+        const novaOS = {
+          nome,
+          telefone,
+          modelo,
+          defeito,
+          distancia: distancia.toFixed(2),
+          localizacao: coords,
+          data: serverTimestamp()
+        };
+
+        try {
+          const docRef = await addDoc(collection(db, "ordens"), novaOS);
+          const numeroOS = docRef.id.substring(0, 8).toUpperCase();
+          const mensagem = `🛠️ *ORDEM DE SERVIÇO*
+
+*Nome:* ${nome}
+*Telefone:* ${telefone}
+*Modelo:* ${modelo}
+*Defeito:* ${defeito}
+*Distância:* ${distancia.toFixed(2)} km
+*Nº OS:* ${numeroOS}`;
+          window.open(`https://wa.me/5551994259956?text=${encodeURIComponent(mensagem)}`, '_blank');
+          alert("Ordem de serviço enviada com sucesso!");
+        } catch (e) {
+          console.error("Erro ao adicionar documento: ", e);
+          alert("Erro ao enviar OS.");
+        }
+      });
+    }
+  </script>
+  <style>
+    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+    .container { max-width: 500px; background: white; padding: 20px; margin: auto; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    input, textarea { width: 100%; margin-top: 10px; padding: 12px; border-radius: 8px; border: 1px solid #ccc; }
+    label { display: block; margin-top: 15px; }
+    button { width: 100%; margin-top: 20px; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>SpeedConsert - Ordem de Serviço</h2><p style="color:#b30000; font-weight:bold;">📢 Trabalhamos apenas com tele-busca. Não temos loja física.</p>
+    <input type="text" id="nome" placeholder="Nome" required>
+    <input type="tel" id="telefone" placeholder="Telefone" required>
+    <input type="text" id="modelo" placeholder="Modelo do Aparelho" required>
+    <textarea id="defeito" placeholder="Descreva o defeito" required></textarea>
+    <div id="taxaInfo" style="margin-top:10px; font-weight:bold;"></div>
+    <button onclick="enviarFormulario()">Enviar Ordem de Serviço</button>
+  </div>
+</body>
+</html>
